@@ -2,6 +2,8 @@ var Twit = require('twit');
 var sentiment = require('sentiment');
 var histogram = require('ascii-histogram');
 var bytes = require('bytes');
+var writeFile = require('write');
+var util = require('util');
 
 
 function shouldRecordTweet(text){
@@ -73,6 +75,9 @@ HourlyTracker.prototype.ensureSentimentBuckets = function(day, hour){
 
 HourlyTracker.prototype.displayHist = function(){
   console.log(this.sentimentBuckets);
+  writeFile('output.txt', util.inspect(this.sentimentBuckets), function(err) {
+    if (err) console.log(err);
+  });
 }
 
 HourlyTracker.prototype.recordTweet = function(tweet){
@@ -86,7 +91,7 @@ HourlyTracker.prototype.recordTweet = function(tweet){
   var bucket = this.sentimentBuckets[day][hour];
   bucket.addScore(sScore);
 
-  if(this.tweetIndex % 20 == 0){
+  if(this.tweetIndex % 100 == 0){
     this.displayHist();
   }
 }
