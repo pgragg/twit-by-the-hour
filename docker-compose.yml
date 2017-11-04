@@ -1,0 +1,7 @@
+version: '3'
+services:
+  twit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: node sentiment-by-hour.js
