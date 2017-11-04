@@ -8,23 +8,30 @@ function shouldRecordTweet(text){
   return (text.indexOf('RT @') != 0)
 }
 
-function currentHour(){
-  return new Date().toString().split(' ')[4].split(':')[0]
+function hourFrom(milliseconds){
+  return new Date(milliseconds).toString().split(' ')[4].split(':')[0];
 }
-function currentDay(){
-  return new Date().toString().split(' ')[2]
+function dayFrom(milliseconds){
+  return new Date(milliseconds).toString().split(' ')[2];
 }
 
+function TweetStats(){
+  this.mean = 0;
+  this.count = 0;
+}
+
+TweetStats.prototype.addScore = function(score){
+  var x = (this.mean * this.count) + score;
+  this.count ++;
+  this.mean = Number(x/this.count);
+}
 
 function HourlyTracker(){
   this.initializeTwit();
   this.initializeStream();
 
-  var totalScore = 0;
-  var textIndex = 0;
-  var totals = {};
-  var allTweets = {};
-  var sentimentBuckets = {};
+  this.tweetIndex = 0;
+  this.sentimentBuckets = {};
 }
 
 
@@ -40,34 +47,47 @@ HourlyTracker.prototype.initializeTwit = function(){
 
 HourlyTracker.prototype.onTweet = function(tweet){
   var text = tweet.text;
-  // if(shouldRecordTweet(text)){
-  //  recordTweet(text);
-  //  textIndex = textIndex + 1;
-  // }
+  if(shouldRecordTweet(text)){
+   this.recordTweet(tweet);
+   this.tweetIndex ++;
+  }
 }
 
 HourlyTracker.prototype.initializeStream = function(){
   this.stream = this.T.stream('statuses/filter', { track: ['Trump'] });
   this.stream.on('tweet', function(tweet) {
     this.onTweet(tweet);
-  }.bind(this))
+  }.bind(this));
 }
 
+HourlyTracker.prototype.getTimeVars = function(milliseconds){
+  var currentDay = dayFrom(milliseconds);
+  var currentHour = hourFrom(milliseconds);
+  return [currentDay, currentHour];
+};
 
+HourlyTracker.prototype.ensureSentimentBuckets = function(day, hour){
+  this.sentimentBuckets[day] = this.sentimentBuckets[day] || {}
+  this.sentimentBuckets[day][hour] = this.sentimentBuckets[day][hour] || new TweetStats();
+};
 
-function recordTweet(text){
-  sScore = sentiment(text).comparative;
+HourlyTracker.prototype.displayHist = function(){
+  console.log(this.sentimentBuckets);
+}
 
-  // Get currentHour, day.
-  // Find or create bucket for hour and day
-  // x = mean * count of bucket + sentiment, increment count by 1, 
-  // mean = x/count 
-  totalScore = totalScore + Number(sScore);
-  average_score = totalScore/textIndex;
+HourlyTracker.prototype.recordTweet = function(tweet){
+  this.tweet = tweet;
+  var sScore = sentiment(tweet.text).comparative;
+  var timeVars = this.getTimeVars(Number(tweet.timestamp_ms));
+  var day = timeVars[0];
+  var hour = timeVars[1];
 
-  addToSentimentBucket(sScore)
-  if(textIndex % 20 == 0){
-    displayHist()
+  this.ensureSentimentBuckets(day, hour);
+  var bucket = this.sentimentBuckets[day][hour];
+  bucket.addScore(sScore);
+
+  if(this.tweetIndex % 20 == 0){
+    this.displayHist();
   }
 }
 
